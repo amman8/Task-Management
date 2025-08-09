@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Interactive Physics Course – High School (Lessons 1–3)</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111a2b; --soft:#16233a; --accent:#7dd3fc;
+    --accent2:#a78bfa; --text:#e6eefc; --muted:#9fb4d5; --good:#34d399; --warn:#fbbf24; --bad:#fb7185;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#09101d,#0b1220);}
+  body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;
+       color:var(--text);}
+  a{color:var(--accent)}
+  .app{
+    max-width:1200px;margin:24px auto;padding:16px;
+  }
+  .header{
+    display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:12px;
+  }
+  .title{font-weight:800;font-size:clamp(20px,2.6vw,30px);letter-spacing:.3px}
+  .subtitle{color:var(--muted);font-size:14px}
+  .shell{
+    display:grid;grid-template-columns:280px 1fr;gap:16px;
+  }
+  @media (max-width:980px){.shell{grid-template-columns:1fr}}
+  .sidebar{
+    background:linear-gradient(180deg,var(--panel),#0c1629);
+    border:1px solid #1d2b45;border-radius:16px;padding:14px;position:sticky;top:16px;height:fit-content;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  .progress-wrap{margin-bottom:12px}
+  .progress-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .progress{
+    height:10px;background:linear-gradient(90deg,#0e1a2e,#0b1323);border-radius:999px;overflow:hidden;border:1px solid #1d2b45;
+  }
+  .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s ease}
+  .lesson-list{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .lesson{
+    padding:10px 12px;border-radius:12px;border:1px solid #1d2b45;background:var(--soft);
+    display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;cursor:pointer;
+    transition:transform .08s ease;
+  }
+  .lesson:hover{transform:translateY(-1px)}
+  .lesson.active{outline:2px solid var(--accent);background:#152743}
+  .tag{font-size:10px;color:#c1d4f7;background:#0e1930;border:1px solid #1d2b45;padding:2px 6px;border-radius:999px}
+  .status-dot{width:8px;height:8px;border-radius:999px;background:#2b3958;border:1px solid #1d2b45}
+  .status-dot.done{background:var(--good)}
+  .status-dot.current{background:var(--accent)}
+  .content{
+    background:linear-gradient(180deg,#0e1729,#0a1220);border:1px solid #1d2b45;border-radius:16px;
+    box-shadow:0 10px 40px rgba(0,0,0,.35);padding:18px;
+  }
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .pill{
+    border:1px solid #203251;background:#0e1a2e;border-radius:999px;padding:8px 12px;font-size:13px;color:var(--muted)
+  }
+  .navbtn{
+    border:1px solid #223252;background:#11203a;color:var(--text);border-radius:10px;padding:10px 12px;cursor:pointer;
+  }
+  .navbtn[disabled]{opacity:.45;cursor:not-allowed}
+  .grid{
+    display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin-top:8px
+  }
+  @media (max-width:980px){.grid{grid-template-columns:1fr}}
+  .panel{
+    background:linear-gradient(180deg,#0f1b2f,#0c1629);border:1px solid #203251;border-radius:14px;padding:14px;
+  }
+  .panel h3{margin:0 0 8px 0;font-size:16px}
+  .panel p{color:var(--muted);margin:6px 0 10px 0;line-height:1.45}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .ctrl{display:grid;gap:6px;margin:6px 0}
+  .ctrl label{font-size:12px;color:#c8d7f0}
+  input[type="range"]{width:240px}
+  input[type="number"]{width:100px;background:#0f1b2f;border:1px solid #27406c;border-radius:8px;color:var(--text);padding:6px 8px}
+  .btn{
+    border:1px solid #27406c;background:#0f223e;color:#eaf2ff;border-radius:10px;padding:8px 10px;cursor:pointer
+  }
+  canvas,.viz{
+    width:100%;height:420px;background:radial-gradient(1200px 300px at 50% 0%, #0a1426 0%, #070e1b 45%, #060b16 100%);
+    border:1px solid #1f2f4f;border-radius:12px;display:block;
+  }
+  .legend{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .key{display:flex;gap:6px;align-items:center}
+  .kbox{width:12px;height:12px;border-radius:3px;border:1px solid #2d416a}
+  .k-red{background:#ef4444}.k-blue{background:#60a5fa}.k-green{background:#34d399}.k-yellow{background:#fbbf24}.k-purple{background:#a78bfa}
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+  @media (max-width:800px){.facts{grid-template-columns:1fr 1fr}}
+  @media (max-width:520px){.facts{grid-template-columns:1fr}}
+  .fact{background:#0f1a2d;border:1px solid #213559;border-radius:12px;padding:10px}
+  .fact .big{font-size:18px;font-weight:700}
+  .quiz{margin-top:10px;border-top:1px dashed #2a3f68;padding-top:12px}
+  .q{margin:8px 0}
+  .choice{display:block;margin:6px 0;padding:8px 10px;border:1px solid #25406b;border-radius:10px;background:#0f203a;cursor:pointer}
+  .choice.correct{border-color:#1f6b4d;background:#0f2a21}
+  .choice.incorrect{border-color:#6b1f33;background:#2a0f16}
+  .note{font-size:12px;color:var(--muted)}
+  .footer{
+    margin-top:16px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <div class="title">Interactive Physics • Lessons 1–3</div>
+      <div class="subtitle">Hands-on visualizations with sliders, animations, and instant checks.</div>
+    </div>
+    <button id="resetAll" class="navbtn">Reset Progress</button>
+  </div>
+
+  <div class="shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Course Progress</span><span id="progressText">0%</span>
+        </div>
+        <div class="progress"><div id="bar" class="bar" style="width:0%"></div></div>
+      </div>
+
+      <div class="lesson-list" id="lessonList">
+        <!-- Filled by JS -->
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="content">
+      <div class="toolbar">
+        <div class="pill" id="crumb">Lesson 1 • Kinematics</div>
+        <div class="row">
+          <button id="prevBtn" class="navbtn" disabled>◀ Previous</button>
+          <button id="nextBtn" class="navbtn">Next ▶</button>
+        </div>
+      </div>
+
+      <!-- LESSON AREA -->
+      <section id="lessonContainer">
+        <!-- Injected by JS -->
+      </section>
+
+      <div class="footer">
+        <div class="note">Tip: Drag sliders while the simulation runs. Pause to inspect values. All equations assume straight-line motion unless stated otherwise.</div>
+        <div class="row">
+          <button class="navbtn" id="markComplete">Mark Lesson Complete ✓</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+/* ---------- UTILITIES ---------- */
+const $ = (sel, root=document)=>root.querySelector(sel);
+const $$ = (sel, root=document)=>[...root.querySelectorAll(sel)];
+const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+const fmt = (n, d=2)=>Number.isFinite(n)? n.toFixed(d): '—';
+const g = 9.81;
+
+/* ---------- LESSON DEFINITIONS ---------- */
+const LESSONS = [
+  {
+    id: 'l1',
+    title: 'Kinematics (1D Motion)',
+    tag: 'vectors & graphs',
+    setup(container){
+      container.innerHTML = `
+        <div class="grid">
+          <div class="panel">
+            <h3>Simulation</h3>
+            <p>Model straight-line motion: \( x(t) = x₀ + v₀ t + ½ a t² \) and \( v(t) = v₀ + a t \).</p>
+            <div class="legend">
+              <div class="key"><span class="kbox k-blue"></span><span>Position x</span></div>
+              <div class="key"><span class="kbox k-yellow"></span><span>Velocity v</span></div>
+              <div class="key"><span class="kbox k-purple"></span><span>Acceleration a</span></div>
+            </div>
+            <canvas id="c1"></canvas>
+            <div class="row" style="margin-top:8px;gap:8px">
+              <button class="btn" id="play1">▶ Play</button>
+              <button class="btn" id="pause1">⏸ Pause</button>
+              <button class="btn" id="reset1">⟲ Reset</button>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Controls</h3>
+            <div class="ctrl">
+              <label>Initial position x₀ (m)</label>
+              <input type="range" min="-20" max="20" step="0.5" value="0" id="x0r">
+              <input type="number" id="x0n" value="0" step="0.5">
+            </div>
+            <div class="ctrl">
+              <label>Initial velocity v₀ (m/s)</label>
+              <input type="range" min="-20" max="20" step="0.5" value="10" id="v0r">
+              <input type="number" id="v0n" value="10" step="0.5">
+            </div>
+            <div class="ctrl">
+              <label>Acceleration a (m/s²)</label>
+              <input type="range" min="-20" max="20" step="0.5" value="-9.8" id="ar">
+              <input type="number" id="an" value="-9.8" step="0.1">
+            </div>
+            <div class="ctrl">
+              <label>Time scale (x speed)</label>
+              <input type="range" min="0.25" max="2" step="0.25" value="1" id="tScale">
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="big" id="xval">x: 0.00 m</div><div>Position</div></div>
+              <div class="fact"><div class="big" id="vval">v: 10.00 m/s</div><div>Velocity</div></div>
+              <div class="fact"><div class="big" id="aval">a: -9.80 m/s²</div><div>Acceleration</div></div>
+            </div>
+
+            <div class="quiz">
+              <h3>Quick Check</h3>
+              <div class="q">An object with v₀ = 5 m/s and a = 0 moves for 4 s. Its displacement Δx is:</div>
+              <label class="choice"><input type="radio" name="q1" value="a"> 10 m</label>
+              <label class="choice"><input type="radio" name="q1" value="b"> 20 m</label>
+              <label class="choice"><input type="radio" name="q1" value="c"> 5 m</label>
+              <div id="q1result" class="note"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // wiring
+      const c = $('#c1', container), ctx = c.getContext('2d');
+      const play = $('#play1', container), pause = $('#pause1', container), reset = $('#reset1', container);
+      const x0r = $('#x0r', container), x0n = $('#x0n', container);
+      const v0r = $('#v0r', container), v0n = $('#v0n', container);
+      const ar  = $('#ar' , container), an  = $('#an' , container);
+      const tScale = $('#tScale', container);
+      const xval=$('#xval',container), vval=$('#vval',container), aval=$('#aval',container);
+
+      // sync helpers
+      const link = (range, num, on)=> {
+        const sync=(src,dst)=>{dst.value=src.value; on()};
+        range.addEventListener('input',()=>sync(range,num));
+        num.addEventListener('input',()=>sync(num,range));
+      };
+
+      let state = { x0:0, v0:10, a:-9.8, t:0, playing:false, scale:1 };
+      link(x0r,x0n,()=>state.x0=parseFloat(x0r.value));
+      link(v0r,v0n,()=>state.v0=parseFloat(v0r.value));
+      link(ar, an ,()=>state.a =parseFloat(ar.value ));
+      tScale.addEventListener('input',()=>state.scale=parseFloat(tScale.value));
+
+      const resize=()=>{
+        const r = c.getBoundingClientRect();
+        const dpr = devicePixelRatio || 1;
+        c.width = Math.floor(r.width * dpr);
+        c.height= Math.floor(420 * dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        draw(0); // refresh
+      };
+      window.addEventListener('resize', resize);
+      resize();
+
+      let last = performance.now();
+      function loop(now){
+        if(!state.playing){ last = now; requestAnimationFrame(loop); return; }
+        const dt = (now - last)/1000 * state.scale; last = now;
+        state.t += dt;
+        draw(state.t);
+        requestAnimationFrame(loop);
+      }
+      function worldToCanvas(x, minx=-50, maxx=50){
+        const pad=40;
+        return pad + (x-minx)/(maxx-minx)*(c.width - 2*pad);
+      }
+      function draw(t){
+        // compute
+        const x = state.x0 + state.v0*t + 0.5*state.a*t*t;
+        const v = state.v0 + state.a*t;
+        const a = state.a;
+
+        // UI numbers
+        xval.textContent = `x: ${fmt(x)} m`;
+        vval.textContent = `v: ${fmt(v)} m/s`;
+        aval.textContent = `a: ${fmt(a)} m/s²`;
+
+        // draw
+        ctx.clearRect(0,0,c.width,c.height);
+        // ground axis
+        ctx.strokeStyle = '#1f2f4f'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(20, c.height-60); ctx.lineTo(c.width-20, c.height-60); ctx.stroke();
+
+        // object
+        const X = worldToCanvas(x);
+        const Y = c.height - 100;
+        ctx.fillStyle = '#60a5fa';
+        ctx.beginPath(); ctx.arc(X, Y, 12, 0, Math.PI*2); ctx.fill();
+        // velocity arrow
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(X, Y);
+        ctx.lineTo(X + clamp(v, -30, 30)*5, Y);
+        ctx.stroke();
+        // acceleration arrow
+        ctx.strokeStyle = '#a78bfa'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(X, Y);
+        ctx.lineTo(X + clamp(a, -20, 20)*6, Y-30);
+        ctx.stroke();
+
+        // graph mini: x(t)
+        const gw = c.width - 80, gh = 100, gx = 40, gy = 40;
+        ctx.fillStyle = 'rgba(255,255,255,.03)';
+        roundRect(ctx, gx, gy, gw, gh, 8, true);
+        ctx.strokeStyle='#2b436f'; ctx.strokeRect(gx,gy,gw,gh);
+        ctx.beginPath();
+        for(let i=0;i<gw;i++){
+          const tt = (i/gw)*5; // 0..5 s
+          const xv = state.x0 + state.v0*tt + 0.5*state.a*tt*tt;
+          const xn = (xv + 50)/100; // normalize roughly in [-50,50]
+          const yy = gy + gh - clamp(xn,0,1)*gh;
+          const xx = gx + i;
+          if(i===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy);
+        }
+        ctx.strokeStyle='#60a5fa'; ctx.lineWidth=2; ctx.stroke();
+
+        // time marker
+        const tt = clamp(state.t/5, 0, 1);
+        const tx = gx + tt*gw;
+        ctx.strokeStyle='#7dd3fc88';
+        ctx.beginPath(); ctx.moveTo(tx,gy); ctx.lineTo(tx,gy+gh); ctx.stroke();
+
+        // labels
+        ctx.fillStyle = '#9fb4d5'; ctx.font = '12px system-ui';
+        ctx.fillText('x(t) over 0–5 s', gx+8, gy+16);
+      }
+      function roundRect(ctx,x,y,w,h,r,fill){
+        ctx.beginPath();
+        ctx.moveTo(x+r,y);
+        ctx.arcTo(x+w,y,x+w,y+h,r);
+        ctx.arcTo(x+w,y+h,x,y+h,r);
+        ctx.arcTo(x,y+h,x,y,r);
+        ctx.arcTo(x,y,x+w,y,r);
+        if(fill) ctx.fill(); else ctx.stroke();
+      }
+
+      play.addEventListener('click',()=>{state.playing=true; requestAnimationFrame(loop)});
+      pause.addEventListener('click',()=>state.playing=false);
+      reset.addEventListener('click',()=>{state.t=0; draw(0)});
+
+      // quiz
+      $$('.choice', container).forEach(ch=>{
+        ch.addEventListener('click', (e)=>{
+          const v = ch.querySelector('input').value;
+          const res = $('#q1result', container);
+          if(v==='b'){ ch.classList.add('correct'); res.textContent='Correct! Δx = v t = 5 × 4 = 20 m.'; }
+          else { ch.classList.add('incorrect'); res.textContent='Not quite. With a=0, Δx = v t.'; }
+          // lock others
+          $$('.choice', container).forEach(o=>{o.style.pointerEvents='none'});
+        });
+      });
+
+      draw(0);
+    }
+  },
+  {
+    id: 'l2',
+    title: 'Forces & Newton’s Laws',
+    tag: 'F = ma • friction',
+    setup(container){
+      container.innerHTML = `
+        <div class="grid">
+          <div class="panel">
+            <h3>Block & Surface</h3>
+            <p>Drag or set an applied force. Static friction holds until \( |F| ≤ μₛ N \). If moving, kinetic friction \( F_k = μ_k N \) opposes motion.</p>
+            <div class="legend">
+              <div class="key"><span class="kbox k-green"></span><span>Applied Force</span></div>
+              <div class="key"><span class="kbox k-red"></span><span>Friction</span></div>
+              <div class="key"><span class="kbox k-blue"></span><span>Net Force</span></div>
+            </div>
+            <canvas id="c2"></canvas>
+            <div class="row" style="margin-top:8px;gap:8px">
+              <button class="btn" id="play2">▶ Play</button>
+              <button class="btn" id="pause2">⏸ Pause</button>
+              <button class="btn" id="reset2">⟲ Reset</button>
+              <span class="pill" id="mode2">Static?</span>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Controls</h3>
+            <div class="ctrl">
+              <label>Mass m (kg)</label>
+              <input type="range" min="1" max="50" step="1" value="10" id="mr">
+              <input type="number" id="mn" value="10" step="1">
+            </div>
+            <div class="ctrl">
+              <label>μₛ (static friction)</label>
+              <input type="range" min="0" max="1" step="0.05" value="0.3" id="mus">
+              <input type="number" id="musn" value="0.3" step="0.05">
+            </div>
+            <div class="ctrl">
+              <label>μₖ (kinetic friction)</label>
+              <input type="range" min="0" max="1" step="0.05" value="0.2" id="muk">
+              <input type="number" id="mukn" value="0.2" step="0.05">
+            </div>
+            <div class="ctrl">
+              <label>Applied Force F (N)</label>
+              <input type="range" min="-300" max="300" step="5" value="0" id="Fapp">
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="big" id="fnet">ΣF: 0.00 N</div><div>Net Force</div></div>
+              <div class="fact"><div class="big" id="acc">a: 0.00 m/s²</div><div>Acceleration</div></div>
+              <div class="fact"><div class="big" id="vel">v: 0.00 m/s</div><div>Velocity</div></div>
+            </div>
+
+            <div class="quiz">
+              <h3>Quick Check</h3>
+              <div class="q">A 5 kg block (μₛ = 0.4) on a horizontal floor has max static friction of:</div>
+              <label class="choice"><input type="radio" name="q2" value="a"> \(μₛ m\) = 2 N</label>
+              <label class="choice"><input type="radio" name="q2" value="b"> \(μₛ m g\) ≈ 19.6 N</label>
+              <label class="choice"><input type="radio" name="q2" value="c"> \(m g\) ≈ 49 N</label>
+              <div id="q2result" class="note"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // wiring
+      const c = $('#c2', container), ctx = c.getContext('2d');
+      const play=$('#play2',container), pause=$('#pause2',container), reset=$('#reset2',container);
+      const mr=$('#mr',container), mn=$('#mn',container);
+      const mus=$('#mus',container), musn=$('#musn',container);
+      const muk=$('#muk',container), mukn=$('#mukn',container);
+      const Fapp=$('#Fapp',container);
+      const mode2=$('#mode2',container);
+      const fnet=$('#fnet',container), acc=$('#acc',container), vel=$('#vel',container);
+
+      const link=(r,n,on)=>{const sync=(a,b)=>{b.value=a.value; on()}; r.addEventListener('input',()=>sync(r,n)); n.addEventListener('input',()=>sync(n,r))};
+
+      let S={m:10, mus:0.3, muk:0.2, F:0, x:0, v:0, playing:false};
+      link(mr,mn,()=>S.m=parseFloat(mr.value));
+      link(mus,musn,()=>S.mus=parseFloat(mus.value));
+      link(muk,mukn,()=>S.muk=parseFloat(muk.value));
+      Fapp.addEventListener('input',()=>S.F=parseFloat(Fapp.value));
+
+      const resize=()=>{
+        const r = c.getBoundingClientRect(), dpr=devicePixelRatio||1;
+        c.width=Math.floor(r.width*dpr); c.height=Math.floor(420*dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        draw(0);
+      }; window.addEventListener('resize',resize); resize();
+
+      let last=performance.now();
+      function loop(now){
+        if(!S.playing){ last=now; requestAnimationFrame(loop); return; }
+        const dt=Math.min(0.033,(now-last)/1000); last=now;
+
+        const N = S.m * g;
+        const FmaxStatic = S.mus * N;
+        let friction = 0;
+        let mode = 'Static';
+
+        if (Math.abs(S.v) < 1e-3) {
+          // check if static holds
+          if (Math.abs(S.F) <= FmaxStatic) {
+            friction = -S.F; // balances
+            // no motion
+          } else {
+            // breakaway
+            const dir = Math.sign(S.F);
+            friction = -S.muk * N * dir;
+            mode = 'Kinetic';
+          }
+        } else {
+          const dir = Math.sign(S.v);
+          friction = -S.muk * N * dir;
+          mode = 'Kinetic';
+        }
+
+        const Fnet = S.F + friction; // horizontal
+        const a = Fnet / S.m;
+
+        if (mode==='Static' && Math.abs(S.F) <= FmaxStatic){
+          // a=0; v=0
+        } else {
+          S.v += a * dt;
+          S.x += S.v * dt;
+          // tiny damping to avoid drift when forces cancel
+          if (Math.abs(S.v) < 1e-4) S.v = 0;
+        }
+
+        mode2.textContent = mode==='Static' ? 'Static friction (no slip)' : 'Kinetic friction (sliding)';
+        draw(Fnet, friction);
+        fnet.textContent = `ΣF: ${fmt(Fnet,2)} N`;
+        acc.textContent = `a: ${fmt(a,2)} m/s²`;
+        vel.textContent = `v: ${fmt(S.v,2)} m/s`;
+
+        requestAnimationFrame(loop);
+      }
+
+      function draw(Fnet, friction){
+        ctx.clearRect(0,0,c.width,c.height);
+        const baseY = c.height-80, left=40, right=c.width-40;
+        // ground
+        ctx.fillStyle='#0c1a30'; ctx.fillRect(20, baseY, c.width-40, 20);
+        // hatch
+        ctx.strokeStyle='#1f3356'; ctx.lineWidth=1;
+        for(let x=20;x<c.width-20;x+=14){
+          ctx.beginPath(); ctx.moveTo(x, baseY); ctx.lineTo(x+8, baseY+20); ctx.stroke();
+        }
+        // block
+        const bx = clamp( (c.width/2 + S.x*30), left+50, right-150 );
+        const by = baseY-60;
+        ctx.fillStyle='#1d3a66'; roundRect(ctx, bx, by, 120, 60, 10, true);
+        ctx.strokeStyle='#284c81'; ctx.strokeRect(bx, by, 120, 60);
+
+        // forces arrows
+        const cx = bx+60, cy = by+30;
+        // Applied
+        drawArrow(cx, cy, cx + clamp(S.F,-300,300)*0.3, cy, '#34d399', 4);
+        // Friction
+        drawArrow(cx, cy, cx + clamp(friction,-300,300)*0.3, cy-18, '#fb7185', 3);
+        // Net
+        drawArrow(cx, cy, cx + clamp(Fnet,-300,300)*0.3, cy+18, '#60a5fa', 3);
+
+        // labels
+        ctx.fillStyle='#9fb4d5'; ctx.font='12px system-ui';
+        ctx.fillText(`m = ${fmt(S.m,0)} kg`, bx+10, by+18);
+        ctx.fillText(`μs = ${fmt(S.mus,2)}  μk = ${fmt(S.muk,2)}`, bx+10, by+36);
+      }
+      function drawArrow(x1,y1,x2,y2,color,w){
+        const ctx2=ctx; const head=10;
+        ctx2.strokeStyle=color; ctx2.lineWidth=w; ctx2.beginPath(); ctx2.moveTo(x1,y1); ctx2.lineTo(x2,y2); ctx2.stroke();
+        const ang=Math.atan2(y2-y1,x2-x1);
+        ctx2.beginPath();
+        ctx2.moveTo(x2,y2);
+        ctx2.lineTo(x2-head*Math.cos(ang-Math.PI/6), y2-head*Math.sin(ang-Math.PI/6));
+        ctx2.lineTo(x2-head*Math.cos(ang+Math.PI/6), y2-head*Math.sin(ang+Math.PI/6));
+        ctx2.closePath(); ctx2.fillStyle=color; ctx2.fill();
+      }
+      function roundRect(ctx,x,y,w,h,r,fill){ctx.beginPath();
+        ctx.moveTo(x+r,y);
+        ctx.arcTo(x+w,y,x+w,y+h,r);
+        ctx.arcTo(x+w,y+h,x,y+h,r);
+        ctx.arcTo(x,y+h,x,y,r);
+        ctx.arcTo(x,y,x+w,y,r);
+        if(fill) ctx.fill(); else ctx.stroke();
+      }
+
+      play.addEventListener('click',()=>{S.playing=true; requestAnimationFrame(loop)});
+      pause.addEventListener('click',()=>S.playing=false);
+      reset.addEventListener('click',()=>{S.x=0;S.v=0;S.F=0;Fapp.value=0; draw(0,0)});
+
+      // Quiz
+      $$('.choice', container).forEach(ch=>{
+        ch.addEventListener('click',()=>{
+          const v = ch.querySelector('input').value;
+          const res = $('#q2result', container);
+          if(v==='b'){ ch.classList.add('correct'); res.textContent='Correct: F_max = μₛ N = μₛ m g ≈ 0.4 × 5 × 9.81 ≈ 19.6 N.'; }
+          else { ch.classList.add('incorrect'); res.textContent='Remember: static friction max is μₛ times the normal force (m g on level ground).'; }
+          $$('.choice', container).forEach(o=>o.style.pointerEvents='none');
+        });
+      });
+
+      draw(0,0);
+    }
+  },
+  {
+    id: 'l3',
+    title: 'Energy: KE, PE & Conservation',
+    tag: 'pendulum',
+    setup(container){
+      container.innerHTML = `
+        <div class="grid">
+          <div class="panel">
+            <h3>Pendulum Energy</h3>
+            <p>Total mechanical energy \(E = KE + PE\). For a pendulum of length L and bob mass m, height h changes with angle θ: \(PE = m g h\), \(KE = ½ m v^2\).</p>
+            <div class="legend">
+              <div class="key"><span class="kbox k-yellow"></span><span>KE</span></div>
+              <div class="key"><span class="kbox k-purple"></span><span>PE</span></div>
+              <div class="key"><span class="kbox k-blue"></span><span>Total</span></div>
+            </div>
+            <canvas id="c3"></canvas>
+            <div class="row" style="margin-top:8px;gap:8px">
+              <button class="btn" id="play3">▶ Play</button>
+              <button class="btn" id="pause3">⏸ Pause</button>
+              <button class="btn" id="reset3">⟲ Reset</button>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Controls</h3>
+            <div class="ctrl">
+              <label>Length L (m)</label>
+              <input type="range" min="0.5" max="3" step="0.1" value="1.2" id="Lr">
+              <input type="number" id="Ln" value="1.2" step="0.1">
+            </div>
+            <div class="ctrl">
+              <label>Mass m (kg)</label>
+              <input type="range" min="0.1" max="10" step="0.1" value="1" id="mr3">
+              <input type="number" id="mn3" value="1" step="0.1">
+            </div>
+            <div class="ctrl">
+              <label>Initial angle θ₀ (deg)</label>
+              <input type="range" min="-60" max="60" step="1" value="35" id="th0">
+            </div>
+            <div class="ctrl">
+              <label>Damping (air resistance)</label>
+              <input type="range" min="0" max="0.05" step="0.005" value="0.005" id="damp">
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="big" id="ke">KE: 0.00 J</div><div>Kinetic Energy</div></div>
+              <div class="fact"><div class="big" id="pe">PE: 0.00 J</div><div>Potential Energy</div></div>
+              <div class="fact"><div class="big" id="et">E: 0.00 J</div><div>Total (≈ constant if no damping)</div></div>
+            </div>
+
+            <div class="quiz">
+              <h3>Quick Check</h3>
+              <div class="q">At the lowest point of swing (θ = 0), for small damping, which is true?</div>
+              <label class="choice"><input type="radio" name="q3" value="a"> KE is minimum, PE is maximum</label>
+              <label class="choice"><input type="radio" name="q3" value="b"> KE is maximum, PE is minimum</label>
+              <label class="choice"><input type="radio" name="q3" value="c"> KE and PE are both maximum</label>
+              <div id="q3result" class="note"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const c = $('#c3', container), ctx=c.getContext('2d');
+      const play=$('#play3',container), pause=$('#pause3',container), reset=$('#reset3',container);
+      const Lr=$('#Lr',container), Ln=$('#Ln',container);
+      const mr3=$('#mr3',container), mn3=$('#mn3',container);
+      const th0=$('#th0',container), damp=$('#damp',container);
+      const keEl=$('#ke',container), peEl=$('#pe',container), etEl=$('#et',container);
+
+      const link=(r,n,on)=>{const sync=(a,b)=>{b.value=a.value; on()}; r.addEventListener('input',()=>sync(r,n)); n.addEventListener('input',()=>sync(n,r))};
+
+      let S={L:1.2, m:1, theta:35*Math.PI/180, omega:0, b:0.005, playing:false};
+      link(Lr,Ln,()=>S.L=parseFloat(Lr.value));
+      link(mr3,mn3,()=>S.m=parseFloat(mr3.value));
+      th0.addEventListener('input',()=>{S.theta=parseFloat(th0.value)*Math.PI/180; S.omega=0;});
+      damp.addEventListener('input',()=>S.b=parseFloat(damp.value));
+
+      const resize=()=>{
+        const r = c.getBoundingClientRect(), dpr=devicePixelRatio||1;
+        c.width=Math.floor(r.width*dpr); c.height=Math.floor(420*dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        draw();
+      }; window.addEventListener('resize',resize); resize();
+
+      let last=performance.now();
+      function loop(now){
+        if(!S.playing){ last=now; requestAnimationFrame(loop); return; }
+        const dt=Math.min(0.033,(now-last)/1000); last=now;
+
+        // damped pendulum: θ¨ + (b) θ˙ + (g/L) sin θ = 0
+        const alpha = - (g/S.L) * Math.sin(S.theta) - S.b * S.omega;
+        S.omega += alpha * dt;
+        S.theta += S.omega * dt;
+
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      function draw(){
+        ctx.clearRect(0,0,c.width,c.height);
+        const cx=c.width/2, cy=80; // pivot
+        const Lpx = S.L*160; // pixels per meter
+        const bobX = cx + Lpx * Math.sin(S.theta);
+        const bobY = cy + Lpx * Math.cos(S.theta);
+
+        // string
+        ctx.strokeStyle='#274a7f'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(bobX,bobY); ctx.stroke();
+
+        // bob
+        ctx.fillStyle='#7dd3fc';
+        ctx.beginPath(); ctx.arc(bobX,bobY,14,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle='#3e70b4'; ctx.stroke();
+
+        // energy bars
+        const h = S.L - S.L*Math.cos(S.theta); // vertical rise relative to bottom
+        const PE = S.m * g * h;
+        // bob speed v = L * |omega|
+        const v = Math.abs(S.omega) * S.L;
+        const KE = 0.5 * S.m * v * v;
+        const E  = PE + KE;
+
+        const bx=40, by=c.height-140, bw=c.width-80, bh=20;
+        drawBar(bx,by, bw, bh, KE, 1, '#fbbf24'); // KE (scaled)
+        drawBar(bx,by+bh+10, bw, bh, PE, 1, '#a78bfa'); // PE
+        drawBar(bx,by+2*(bh+10), bw, bh, E , 1, '#60a5fa'); // Total
+
+        ctx.fillStyle='#9fb4d5'; ctx.font='12px system-ui';
+        ctx.fillText('KE', bx+6, by-6);
+        ctx.fillText('PE', bx+6, by+bh+4);
+        ctx.fillText('Total', bx+6, by+2*(bh+10)+bh+4);
+
+        // numbers
+        keEl.textContent = `KE: ${fmt(KE,2)} J`;
+        peEl.textContent = `PE: ${fmt(PE,2)} J`;
+        etEl.textContent = `E: ${fmt(E,2)} J`;
+
+        // ground arc
+        ctx.strokeStyle='#1f2f4f';
+        ctx.beginPath();
+        ctx.arc(cx,cy,Lpx,0,Math.PI,true); ctx.stroke();
+      }
+      function drawBar(x,y,w,h,val,scale,color){
+        // auto-scale to keep bars visible: use a rolling max via local static
+        drawBar.max = Math.max(drawBar.max || 1, val*1.1);
+        const frac = clamp(val / drawBar.max, 0, 1);
+        // bg
+        ctx.fillStyle='rgba(255,255,255,.03)'; roundRect(ctx,x,y,w,h,8,true);
+        ctx.strokeStyle='#2b436f'; ctx.strokeRect(x,y,w,h);
+        // fg
+        const ww = w*frac;
+        ctx.fillStyle=color; roundRect(ctx,x,y,ww,h,8,true);
+      }
+      function roundRect(ctx,x,y,w,h,r,fill){ctx.beginPath();
+        ctx.moveTo(x+r,y);
+        ctx.arcTo(x+w,y,x+w,y+h,r);
+        ctx.arcTo(x+w,y+h,x,y+h,r);
+        ctx.arcTo(x,y+h,x,y,r);
+        ctx.arcTo(x,y,x+w,y,r);
+        if(fill) ctx.fill(); else ctx.stroke();
+      }
+
+      play.addEventListener('click',()=>{S.playing=true; requestAnimationFrame(loop)});
+      pause.addEventListener('click',()=>S.playing=false);
+      reset.addEventListener('click',()=>{S.theta=35*Math.PI/180; S.omega=0; drawBar.max=1; draw()});
+
+      // Quiz
+      $$('.choice', container).forEach(ch=>{
+        ch.addEventListener('click',()=>{
+          const v = ch.querySelector('input').value;
+          const res = $('#q3result', container);
+          if(v==='b'){ ch.classList.add('correct'); res.textContent='Correct: at the bottom PE is minimal (h≈0) and KE is maximal.'; }
+          else { ch.classList.add('incorrect'); res.textContent='Think energy exchange: high PE at the top, high KE at the bottom.'; }
+          $$('.choice', container).forEach(o=>o.style.pointerEvents='none');
+        });
+      });
+
+      draw();
+    }
+  }
+];
+
+/* ---------- APP STATE & NAV ---------- */
+const state = {
+  completed: JSON.parse(localStorage.getItem('hs_physics_completed')||'{}'),
+  idx: 0
+};
+
+function renderSidebar(){
+  const list = $('#lessonList');
+  list.innerHTML = '';
+  LESSONS.forEach((L,i)=>{
+    const div = document.createElement('div');
+    div.className = 'lesson' + (i===state.idx?' active':'');
+    const dot = document.createElement('div');
+    dot.className = 'status-dot ' + (state.completed[L.id]?'done': (i===state.idx?'current':'' ));
+    const title = document.createElement('div');
+    title.innerHTML = `<div style="font-weight:700">${L.title}</div><div class="tag">${L.tag}</div>`;
+    const go = document.createElement('div');
+    go.innerHTML = '→';
+    div.append(dot, title, go);
+    div.addEventListener('click',()=>{state.idx=i; loadLesson()});
+    list.appendChild(div);
+  });
+  const pct = Math.round(100 * Object.keys(state.completed).length / LESSONS.length);
+  $('#bar').style.width = pct + '%';
+  $('#progressText').textContent = `${pct}%`;
+}
+function loadLesson(){
+  const L = LESSONS[state.idx];
+  $('#crumb').textContent = `Lesson ${state.idx+1} • ${L.title}`;
+  const container = $('#lessonContainer');
+  container.innerHTML = '';
+  L.setup(container);
+  renderSidebar();
+  $('#prevBtn').disabled = state.idx===0;
+  $('#nextBtn').disabled = state.idx===LESSONS.length-1;
+}
+$('#prevBtn').addEventListener('click',()=>{ if(state.idx>0){state.idx--; loadLesson();}});
+$('#nextBtn').addEventListener('click',()=>{ if(state.idx<LESSONS.length-1){state.idx++; loadLesson();}});
+$('#markComplete').addEventListener('click',()=>{
+  const L = LESSONS[state.idx];
+  state.completed[L.id]=true;
+  localStorage.setItem('hs_physics_completed', JSON.stringify(state.completed));
+  renderSidebar();
+});
+$('#resetAll').addEventListener('click',()=>{
+  if(confirm('Reset progress and lesson states?')){
+    state.completed={}; localStorage.removeItem('hs_physics_completed'); renderSidebar();
+  }
+});
+
+loadLesson();
+
+</script>
+</body>
+</html>
